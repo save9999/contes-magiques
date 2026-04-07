@@ -510,10 +510,12 @@ function generateStory(
   const template = pool[idx]
 
   function fill(str: string): string {
+    // L'enfant ({name} dans les templates) est le personnage principal
+    // Le héros choisi ({heroName}) est son compagnon magique
     return str
-      .replace(/\{heroName\}/g, heroName)
+      .replace(/\{heroName\}/g, childName || 'notre héros')
       .replace(/\{world\}/g, worldName)
-      .replace(/\{name\}/g, childName || 'toi')
+      .replace(/\{name\}/g, heroName)
   }
 
   return {
@@ -847,26 +849,61 @@ function StoryScreen({ story, onBack, onHome }: {
     return () => { window.speechSynthesis.cancel() }
   }, [])
 
+  function pickBestFrenchVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+    // Priorité : voix féminines naturelles françaises
+    return (
+      voices.find(v => v.name === 'Amélie') ||
+      voices.find(v => v.name === 'Marie') ||
+      voices.find(v => v.name === 'Audrey') ||
+      voices.find(v => v.name.includes('Amélie')) ||
+      voices.find(v => v.lang === 'fr-FR' && v.name.toLowerCase().includes('fem')) ||
+      voices.find(v => v.lang === 'fr-FR' && (v.name.includes('Google') || v.name.includes('Microsoft'))) ||
+      voices.find(v => v.lang === 'fr-FR' && !v.name.toLowerCase().includes('thomas')) ||
+      voices.find(v => v.lang === 'fr-FR') ||
+      voices.find(v => v.lang.startsWith('fr')) ||
+      null
+    )
+  }
+
+  function speakText(text: string) {
+    const cleaned = text
+      .replace(/✨\s*/g, '')
+      .replace(/Morale\s*:/g, 'Et voici la morale de cette belle histoire :')
+      .replace(/\n\n/g, '... ')
+    const utterance = new SpeechSynthesisUtterance(cleaned)
+    utterance.lang = 'fr-FR'
+    utterance.rate = 0.80   // Rythme doux de conteuse
+    utterance.pitch = 1.10  // Voix chaleureuse et féminine
+    utterance.volume = 1.0
+    const voices = window.speechSynthesis.getVoices()
+    const best = pickBestFrenchVoice(voices)
+    if (best) utterance.voice = best
+    utterance.onend = () => setSpeaking(false)
+    utterance.onerror = () => setSpeaking(false)
+    utteranceRef.current = utterance
+    window.speechSynthesis.speak(utterance)
+    setSpeaking(true)
+  }
+
   function toggleNarration() {
     if (!soundEnabled) return
     if (speaking) {
       window.speechSynthesis.cancel()
       setSpeaking(false)
     } else {
-      const text = story.title + '. ' + story.text
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = 'fr-FR'
-      utterance.rate = 0.85
-      utterance.pitch = 1.1
+      const fullText = story.title + '... ' + story.text
       const voices = window.speechSynthesis.getVoices()
-      const frVoice = voices.find(v => v.lang.startsWith('fr') && v.name.toLowerCase().includes('female'))
-        || voices.find(v => v.lang.startsWith('fr'))
-      if (frVoice) utterance.voice = frVoice
-      utterance.onend = () => setSpeaking(false)
-      utterance.onerror = () => setSpeaking(false)
-      utteranceRef.current = utterance
-      window.speechSynthesis.speak(utterance)
-      setSpeaking(true)
+      if (voices.length > 0) {
+        speakText(fullText)
+      } else {
+        // Les voix ne sont pas encore chargées — attendre l'événement
+        window.speechSynthesis.onvoiceschanged = () => {
+          window.speechSynthesis.onvoiceschanged = null
+          speakText(fullText)
+        }
+        // Forcer le chargement sur certains navigateurs
+        window.speechSynthesis.getVoices()
+      }
     }
   }
 
