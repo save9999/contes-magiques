@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Play, Pause, RotateCcw, Heart, ChevronLeft, Volume2, VolumeX, Home } from 'lucide-react'
+import { Play, Pause, RotateCcw, Heart, ChevronLeft, Volume2, VolumeX, Home, Settings, Key, Eye, EyeOff } from 'lucide-react'
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 type Screen = 'home' | 'create' | 'story' | 'library'
@@ -55,6 +55,7 @@ const THEMES = [
 
 const STORY_KEY = 'contes_magiques_stories_v1'
 const CHILD_KEY = 'contes_magiques_child'
+const API_KEY_STORAGE = 'cm_api_key'
 
 function loadStories(): Story[] {
   try { return JSON.parse(localStorage.getItem(STORY_KEY) || '[]') } catch { return [] }
@@ -62,6 +63,62 @@ function loadStories(): Story[] {
 function saveStories(s: Story[]) { localStorage.setItem(STORY_KEY, JSON.stringify(s)) }
 function loadChildName(): string { return localStorage.getItem(CHILD_KEY) || '' }
 function saveChildName(n: string) { localStorage.setItem(CHILD_KEY, n) }
+function loadApiKey(): string { return localStorage.getItem(API_KEY_STORAGE) || import.meta.env.VITE_ANTHROPIC_API_KEY || '' }
+function saveApiKey(k: string) { localStorage.setItem(API_KEY_STORAGE, k) }
+function clearApiKey() { localStorage.removeItem(API_KEY_STORAGE) }
+
+// ─── API KEY MODAL ────────────────────────────────────────────────────────────
+function ApiKeyModal({ onSave, onClose, isRequired }: { onSave: (k: string) => void; onClose?: () => void; isRequired?: boolean }) {
+  const [key, setKey] = useState('')
+  const [show, setShow] = useState(false)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(76,29,149,0.7)', backdropFilter: 'blur(4px)' }}>
+      <div className="w-full max-w-sm rounded-3xl p-6 slide-up" style={{ background: 'white', border: '3px solid #e9d5ff' }}>
+        <div className="text-center mb-4">
+          <div className="text-5xl mb-2">🔑</div>
+          <h2 className="text-xl font-black" style={{ color: '#6d28d9' }}>Clé API Anthropic</h2>
+          <p className="text-sm mt-1" style={{ color: '#9333ea' }}>
+            Nécessaire pour générer les histoires magiques ✨
+          </p>
+        </div>
+        <div className="relative mb-3">
+          <input
+            autoFocus
+            type={show ? 'text' : 'password'}
+            value={key}
+            onChange={e => setKey(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && key.startsWith('sk-') && onSave(key.trim())}
+            placeholder="sk-ant-api03-..."
+            className="w-full px-4 py-3 rounded-2xl pr-12 font-mono text-sm outline-none"
+            style={{ background: '#fdf4ff', border: '2px solid #c084fc', color: '#4c1d95' }}
+          />
+          <button onClick={() => setShow(!show)} className="absolute right-3 top-3.5" style={{ color: '#a855f7' }}>
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+        <p className="text-xs text-center mb-4" style={{ color: '#c084fc' }}>
+          Obtiens ta clé sur{' '}
+          <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer" style={{ color: '#7c3aed', fontWeight: 'bold' }}>
+            console.anthropic.com
+          </a>
+          {' '}(gratuit à l'essai)
+        </p>
+        <button
+          onClick={() => key.startsWith('sk-') && onSave(key.trim())}
+          disabled={!key.startsWith('sk-')}
+          className="w-full py-3 rounded-2xl text-white font-black text-lg transition-all active:scale-95 disabled:opacity-40"
+          style={{ background: 'linear-gradient(135deg, #7c3aed, #ec4899)' }}>
+          Sauvegarder 🪄
+        </button>
+        {!isRequired && onClose && (
+          <button onClick={onClose} className="w-full mt-2 py-2 text-sm font-bold" style={{ color: '#c084fc' }}>
+            Annuler
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // Format story text with paragraph breaks
 function formatStory(text: string) {
@@ -92,14 +149,16 @@ function Stars() {
 }
 
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({ onNavigate, childName, onSetChildName }: {
+function HomeScreen({ onNavigate, childName, onSetChildName, onSettings }: {
   onNavigate: (s: Screen) => void
   childName: string
   onSetChildName: (n: string) => void
+  onSettings: () => void
 }) {
   const [editingName, setEditingName] = useState(!childName)
   const [nameInput, setNameInput] = useState(childName)
   const stories = loadStories()
+  const hasKey = !!loadApiKey()
 
   function saveName() {
     if (nameInput.trim()) {
@@ -111,6 +170,10 @@ function HomeScreen({ onNavigate, childName, onSetChildName }: {
   return (
     <div className="min-h-screen flex flex-col items-center justify-between px-5 py-8 relative" style={{ background: 'linear-gradient(180deg, #fdf4ff 0%, #f0e6ff 100%)' }}>
       <Stars />
+      {/* Settings button */}
+      <button onClick={onSettings} className="absolute top-4 right-4 z-20 p-2 rounded-xl" style={{ background: 'white', color: hasKey ? '#7c3aed' : '#ef4444', border: `2px solid ${hasKey ? '#e9d5ff' : '#fca5a5'}` }} title="Paramètres clé API">
+        {hasKey ? <Settings size={18} /> : <Key size={18} />}
+      </button>
       <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
         {/* Logo */}
         <div className="text-7xl float mb-2">📖</div>
@@ -144,6 +207,15 @@ function HomeScreen({ onNavigate, childName, onSetChildName }: {
               👋 Bonjour <span style={{ color: '#ec4899' }}>{childName}</span> !
             </button>
           </div>
+        )}
+
+        {/* Alerte si clé manquante */}
+        {!hasKey && (
+          <button onClick={onSettings} className="w-full mb-4 px-4 py-3 rounded-2xl flex items-center gap-2 slide-up" style={{ background: '#fff7ed', border: '2px solid #fdba74', color: '#c2410c' }}>
+            <Key size={16} />
+            <span className="text-sm font-bold flex-1 text-left">Clé API manquante — Cliquer pour configurer</span>
+            <span>→</span>
+          </button>
         )}
 
         {/* Boutons principaux */}
@@ -186,6 +258,8 @@ function CreateScreen({ onBack, onStory, childName }: {
   const [selectedTheme, setSelectedTheme] = useState<typeof THEMES[0] | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingMsg, setLoadingMsg] = useState('')
+  const [showKeyModal, setShowKeyModal] = useState(false)
+  const pendingGenerateRef = useRef(false)
 
   const LOADING_MSGS = [
     '✨ Les fées préparent l\'histoire...',
@@ -197,6 +271,12 @@ function CreateScreen({ onBack, onStory, childName }: {
 
   async function generate() {
     if (!selectedHero || !selectedWorld || !selectedTheme) return
+    const apiKey = loadApiKey()
+    if (!apiKey) {
+      pendingGenerateRef.current = true
+      setShowKeyModal(true)
+      return
+    }
     setStep('generate')
     setLoading(true)
     let msgIdx = 0
@@ -207,8 +287,6 @@ function CreateScreen({ onBack, onStory, childName }: {
     }, 2000)
 
     try {
-      const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-      if (!apiKey) throw new Error('Clé API manquante dans .env (VITE_ANTHROPIC_API_KEY)')
 
       const childRef = childName ? `Le héros s'appelle ${childName} dans cette histoire.` : ''
       const prompt = `Écris un conte pour enfant (5-8 ans) en français.
@@ -231,7 +309,7 @@ Format: commence directement par le titre (une seule ligne), puis sépare les pa
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
+          'x-api-key': loadApiKey(),
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true',
         },
@@ -266,7 +344,11 @@ Format: commence directement par le titre (une seule ligne), puis sépare les pa
       saveStories([story, ...existing])
       onStory(story)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur inconnue')
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue'
+      if (msg.includes('401') || msg.includes('403') || msg.includes('invalid')) {
+        clearApiKey()
+        setShowKeyModal(true)
+      }
       setStep('theme')
     } finally {
       clearInterval(interval)
@@ -282,6 +364,13 @@ Format: commence directement par le titre (une seule ligne), puis sépare les pa
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #fdf4ff 0%, #f0e6ff 100%)' }}>
+      {showKeyModal && (
+        <ApiKeyModal
+          isRequired={pendingGenerateRef.current}
+          onSave={k => { saveApiKey(k); setShowKeyModal(false); if (pendingGenerateRef.current) { pendingGenerateRef.current = false; generate() } }}
+          onClose={() => { pendingGenerateRef.current = false; setShowKeyModal(false) }}
+        />
+      )}
       <Stars />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-4 relative z-10">
@@ -619,6 +708,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('home')
   const [currentStory, setCurrentStory] = useState<Story | null>(null)
   const [childName, setChildName] = useState(loadChildName())
+  const [showSettings, setShowSettings] = useState(false)
 
   function setName(n: string) {
     setChildName(n)
@@ -636,5 +726,15 @@ export default function App() {
     return <LibraryScreen onBack={() => setScreen('home')}
       onStory={s => { setCurrentStory(s); setScreen('story') }} />
   }
-  return <HomeScreen onNavigate={setScreen} childName={childName} onSetChildName={setName} />
+  return (
+    <>
+      {showSettings && (
+        <ApiKeyModal
+          onSave={k => { saveApiKey(k); setShowSettings(false) }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+      <HomeScreen onNavigate={setScreen} childName={childName} onSetChildName={setName} onSettings={() => setShowSettings(true)} />
+    </>
+  )
 }
