@@ -77,5 +77,53 @@ body {
 }
 .story-text p { margin-bottom: 1rem; }
 
+/* Story text improvements */
+.story-text::first-letter {
+  font-size: 2.5em;
+  float: left;
+  line-height: 1;
+  margin-right: 0.1em;
+  font-weight: 900;
+  color: #7c3aed;
+}
+
+/* Decorative divider */
+.story-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  opacity: 0.5;
+}
+
+/* Glow effect for hero section */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(124,58,237,0.2), 0 0 40px rgba(236,72,153,0.1); }
+  50% { box-shadow: 0 0 30px rgba(124,58,237,0.4), 0 0 60px rgba(236,72,153,0.2); }
+}
+.glow-card { animation: glow-pulse 3s ease-in-out infinite; }
+
+/* Improved card hover */
+@keyframes card-pop {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.card-pop { animation: card-pop 0.3s ease-out; }
+
+/* Reading progress */
+@keyframes reading-glow {
+  0% { width: 0%; }
+}
+
+/* Story card in library */
+.story-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.story-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(124,58,237,0.15);
+}
+
 /* Prevent text selection on buttons */
 button { user-select: none; }
